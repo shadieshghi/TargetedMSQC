@@ -56,7 +56,7 @@ First, install the package from github and load it in R:
 
 ```{r install, eval = FALSE, echo=TRUE,message=FALSE}
 library(devtools)
-devtools::install_github("/shadieshghi/TargetedMSQC")
+devtools::install_github("shadieshghi/TargetedMSQC",build_vignettes = TRUE)
 ```
 
 ```{r library, echo = TRUE,message=FALSE}
