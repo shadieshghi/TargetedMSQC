@@ -1,0 +1,394 @@
+---
+title: "Peak quality assessment of targeted mass spectrometry data using TargetedMSQC"
+author: 
+- name: "Shadi Eshghi"
+  email: "toghiess@gene.com"
+
+date: "`r BiocStyle::doc_date()`"
+output: 
+    BiocStyle::html_document:
+      self_contained: yes
+      highlight: pygments
+      toc: true
+      number_sections: false
+vignette: >
+  %\VignetteIndexEntry{Peak quality assessment of targeted mass spectrometry data using TargetedMSQC}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview of TargetedMSQC
+
+`TargetedMSQC` provides a semi-automated workflow for quality control (QC) of chromatographic peaks in targeted proteomics experiments, with the aim of improving the efficiency and reducing the subjectivity of data QC. The package offers a toolkit to build and apply statistical models for predicting peak qualities in proteomics datasets using supervised learning methods. The package contains functions to calculate an ensemble of >30 well-established and newly introduced peak quality metrics, such as jaggedness, FWHM, modality, shift, coefficient of variation, consistency of transition peak area ratios, etc., to quantify the quality of chromatographic peaks. These quality control metrics calculated in a training dataset of peaks with pre-annotated quality status labels are used as the feature set in supervised learning algorithms to flag peaks with poor chromatography or interference in other targeted proteomics experiments. 
+
+## Workflow
+
+`TargetedMSQC` can be used to build a predictive peak QC model and apply a developed model to a targeted MS dataset. The workflow for each of these applications consists of a number of steps:
+
+**1. To build a peak quality model tailored to a specific targeted MS panel and biological matrix**   
+
+- Pre-processing of the input data  
+- Calculating peak quality control features   
+- Applying the predictive quality assessment model  
+- Reporting the output of the QC process  
+
+**2. To apply a developed peak quality model to a targeted MS dataset**   
+
+- Pre-processing of the input data  
+- Calculating peak quality control features    
+- Creating the training dataset   
+- Building a predictive quality assessment model  
+
+It is recommended to tailor the peak QC model to the Targeted MS panel as well as the biological matrix used in the experiment. For example, a model built based on training data from a panel that has been run in plasma may not be transferable to samples run using the same panel in urine. This is due to different and unique effects and interferences introduced by each of these matrices.   
+
+Below, each step of the TargetedMSQC is discussed with examples.  
+
+### Installation
+
+First, install the package from github and load it in R:
+
+```{r install, eval = FALSE, echo=TRUE,message=FALSE}
+library(devtools)
+devtools::install_github("/shadieshghi/TargetedMSQC")
+```
+
+```{r library, echo = TRUE,message=FALSE}
+library(TargetedMSQC)
+```
+
+### Pre-processing of the input data
+
+`TargetedMSQC` can currently handle data files exported from Skyline. So the first step is format the Skyline documents into an acceptable form by `TargetedMSQC`. The following files exported from Skyline are required for each Skyline document:
+
+- **Chromatograms**: This file can be exported from Skyline through File > Export > Chromatograms. Here, check runs of interest and include Precursors, Products, Base Peaks and TICs. This will create a .tsv file, which will be an input to `TargetedMSQC`.  
+
+- **Peak boundaries**: This file can be exported from Skyline through File > Export > Report. Here, select Peak Boundaries. This will create a .csv file, which will be an input to `TargetedMSQC`.  
+
+Once these two files are generated, they should be first renamed to have identical names, and then placed in separate directories. To keep everything organized, it is recommended to create a project directory, and place the chromatogram and peak boundary files in separate subdirectories of `Chromatogram` and `Peak_boundary`. 
+
+The `CleanUpChromatograms` function can be used to format the Skyline input files into a data frame that is accepted by `TargetedMSQC` functions. This function takes the path to the chromatogram and peak boundary files as well as other parameters such as the isotopic label for the endogenous (usually `light`) and spiked-in standards (usually `heavy`). Also, if the experiment contains any iRT peptides, they can be provided to the function as a vector of characters, which will remove them from subsequent QC analysis.
+
+```{r CleanUpChromatograms, eval = FALSE}
+# Set the path to the subdirectories of chromatogram and peak boundary files
+extdata.path <- system.file("extdata",package = "TargetedMSQC")
+project.folder.name <- "CSF_Panel"
+project.path <- file.path(extdata.path,project.folder.name)
+chromatogram.path <- file.path(project.path,"Chromatograms")
+peak.boundary.path <- file.path(project.path,"Peak_boundary")
+
+# CleanUpChromatograms reformats the Skyline exported files into a data frame
+data.CSF <- CleanUpChromatograms(chromatogram.path = chromatogram.path,
+                             peak.boundary.path = peak.boundary.path,
+                             endogenous.label = "light",
+                             standard.label = "heavy")
+
+```
+
+The `CleanUpChromatograms` function returns a list with the following objects:    
+
+**1. data.CSF$data**: This data frame contains the peaks that will be passed to downstream QC steps.
+
+The transition peaks that belong to the same peptide and sample are combined together in an object of custom class peakObj and stored in `data.CSF$data` under `PeakGroup` column. These peak objects are used by other function in the TargetedMSQC for calculating the QC features. They can also be visualized using the `PlotChromPeak` function:
+
+```{r PlotChromPeak, fig.width=7,fig.height=7,fig.cap= "Plotting the chromatogram of a peak object using `PlotChromPeak`"}
+PlotChromPeak(peak = data.CSF$data$PeakGroup[[1]],
+              split.label = TRUE,
+              plottype = "ggplot")
+```
+
+```{r,echo=TRUE, eval = FALSE}
+# View the data.CSF$data data frame
+head(data.CSF$data)
+```
+
+**2. data.CSF$removed**: This data frame contains the peaks that are removed from downstream QC analysis due to one of the following reasons:  
+
+- Missing isotope pairs: only the endogenous or standard isotope is present. Please note that `TargetedMSQC` only applies to experiments with spiked-in standards.
+- Missing or duplicate peak boundaries: the peak is either missing peak boundaries or has duplicated boundaries in Skyline exported file.
+- Few transitions: the peptide has fewer than 3 transitions. Some of the QC metrics in the `TargetedMSQC` require at least 3 transitions, so peptides with 2 transitions or fewer are removed from downstream QC analysis.
+
+```{r,echo=TRUE, eval = FALSE}
+# View the data.CSF$removed data frame
+head(data.CSF$removed)
+```
+
+### Calculating peak quality control features 
+
+Once the data has been cleaned up and pre-processed, it is passed on to the `ExtractFeatures` function to calculate the engineered QC metrics for each transition pair:
+
+```{r ExtractFeatures, eval = FALSE}
+data.features.CSF <- ExtractFeatures(data = data.CSF$data,
+                                 export.features = FALSE,
+                                 intensity.threshold = 1000)
+```
+
+The `ExtractFeatures` function returns a list with the following object:  
+
+**data.features.CSF$features**: This data frame holds a total of 52 QC features for individual peptide transition pair in each sample. Each row of this data frame is identified by the `FileName` (equivalent to MS run), `PeptideModifiedSequence`, `PrecursorCharge`, `FragmentIon` and `ProductCharge`. AS an example, the identifier columns for a few rows of this data frame are shown:
+
+```{r, echo=FALSE}
+library(magrittr)
+set.seed(20180521)
+data.features.CSF$features[sample(nrow(data.features.CSF$features),5),c("FileName","PeptideModifiedSequence","PrecursorCharge","FragmentIon","ProductCharge")] %>%
+  dplyr::filter(FragmentIon != "sum") %>%
+  knitr::kable("html") %>%
+  kableExtra::kable_styling(font_size = 7,position = "left")
+```
+
+```{r,echo=TRUE, eval = FALSE}
+# View the data.features.CSF data frame
+head(data.features.CSF$features)
+```
+#### Description of QC features in TargetedMSQC
+
+The engineered QC features that have been calculated for each peptide transition pair can be categorized into 9 general groups.  
+
+- **Area Ratio**  
+- **Jaggedness**  
+- **Symmetry **  
+- **Similarity**  
+- **Modality**  
+- **Shift**  
+- **Full-width at half-max**  
+- **Retention time**  
+- **Intensity**  
+
+These categories are indicated in the ’QC Group’ column for each QC feature in the table below. Depending on what attribute of the peak quality they represent, various QC features are calculated at one or more levels as shown in the ‘Level’ column. For example, jaggedness is reported at transition, isotope and peak group levels, and max intensity is reported only for each transition. The `Description` column provides a definition for each of the QC features.
+  
+<embed src="QC_Metrics_Table.pdf" width="650" height="500" type='application/pdf'>
+
+  
+The `ViolinPlotQCSummary` function enables quick visualization of distribution of a subset or all of the features in the data frame. It returns a list of ggplot objects that belong to individual runs in the study. Additionally, a plot of QC features in all of runs is appended to the output list:
+
+```{r}
+# Specify the features of interest 
+feature.set <- c("Area2SumRatioCV_standard","TransitionJaggedness_standard",
+                 "TransitionSymmetry_standard","TransitionFWHM2base_standard",
+                 "TransitionFWHM_standard","TransitionModality_standard",
+                 "TransitionShift_standard")
+
+# In addition to the list of features, the list of runs of interest can be 
+# specified by a vector of characters. If runs = "all", all the runs in the 
+# input dataset will be included.
+violin.plots = ViolinPlotQCSummary(data.features.CSF$features,
+                                   runs = "all",
+                                   features = feature.set,
+                                   font.size = 14)
+
+```
+
+For example, the violin plot for the first run in the Skyline document can be viewed by:
+```{r fig.align="left",fig.width=7, fig.height=6,fig.cap= "Violin plot summary visualizing the distribution of QC metrics of interest for an individual run"}
+violin.plots[[1]]
+```
+While, the violin plot for the whole dataset is stored in the last element of the output of `ViolinPlotQCSummary`:
+
+```{r fig.align="left",fig.width=7, fig.height=6,fig.cap= "Violin plot summary visualizing the distribution of QC metrics of interest for all the runs in the input dataset"}
+violin.plots[[length(violin.plots)]]
+```
+
+### Creating the training dataset
+
+`TargetedMSQC` uses a supervised learning-based approach to build a predictive model for peak quality. Therefore, an annotated training dataset is needed to serve as a guide to train the model. The `MakeTemplate` function is provided to simplify creating of a training set, by generating a training template that can be shared with an analyst for manual annotation of the peaks with "flag" and "ok" labels. If only a subset of the runs in the Skyline documents are meant to be used for training, the names of those runs can be provided as a vector of characters in the `training.filename.list` parameter.
+
+```{r MakeTemplate, eval = FALSE}
+# Set the path to the subdirectory of the chromatogram file and subdirectory 
+# where the template file should be saved
+extdata.path <- system.file("extdata",package = "TargetedMSQC")
+project.folder.name <- "CSF_Panel"
+project.path <- file.path(extdata.path,project.folder.name)
+chromatogram.path <- file.path(project.path,"Chromatograms")
+template.path <- ""
+
+# MakeTemplate creates a .csv file of the transition pairs that should be 
+# annotated for the training set
+MakeTemplate(chromatogram.path = chromatogram.path,
+              template.path = template.path,
+              endogenous.label = "light",standard.label = "heavy")
+
+```
+
+Once the template file has been generated, the `Status` column should be filled by either `ok` or `flag` labels by an expert analyst. The `Notes` column can be left empty or be populated by any comments that the analyst would like to add for each peak annotation in the training set. The populated file is then saved into a .csv file and placed in the subdirectory of `Training` in he project folder. This file will serve as the training dataset for building the QC model. 
+
+In order to be able to establish a connection between the calculated QC features and the labels associate with each peak, the features and the labels should be merged together. This is done through the `MakeDataSet` function:
+
+```{r MakeDataSet.df, eval=FALSE}
+# Set the path to the subdirectory of the training file
+training.path <- file.path(project.path,"Training")
+
+# MakeDataSet merges the training and feature data frames
+data.set.CSF <- MakeDataSet(feature.data = data.features.CSF$features,
+                            training.path = training.path)
+
+```
+
+Alternatively, if the features have already been saved into a .csv file by setting `export.features = TRUE` when applying the `ExtractFeatures` function, the path to the feature.csv file can be provided instead. This option is particularly useful for larger datasets, where calculation of the QC features is time-consuming:
+
+```{r MakeDataSet.path, eval=FALSE}
+# Set the path to the subdirectory of features and training files
+feature.path <- file.path(project.path,"Features")
+training.path <- file.path(project.path,"Training")
+
+# MakeDataSet merges the training and feature data frames
+data.set.CSF <- MakeDataSet(feature.path = feature.path,
+                            training.path = training.path)
+```
+
+The `MakeDataSet` function returns a list with the following objects:    
+
+**1. data.set.CSF$data.merged**: Merged features and training set data frame
+
+```{r,echo=TRUE, eval = FALSE}
+# View the data.set.CSF$data.merged data frame
+head(data.set.CSF$data.merged)
+```
+
+**2. data.set.CSF$feature.data**: The original features data frame    
+
+```{r,echo=TRUE, eval = FALSE}
+# View the data.set.CSF$feature.data data frame
+head(data.set.CSF$feature.data)
+```
+
+**3. data.set.CSF$training.data**: The original training set data frame
+
+```{r,echo=TRUE, eval = FALSE}
+# View the data.set.CSF$training.data data frame
+head(data.set.CSF$training.data)
+```
+
+Using the `ViolinPlotQCSummary` on the data.merged output of this function, the violin plots of peak QC metric distributions can be overlaid with the labels associated with each peak using the `labels` parameter:
+
+```{r, fig.cap="Violin plot summary visualizing the distribution of QC metrics of interest overlaid with QC status labels"}
+violin.plots = ViolinPlotQCSummary(data.set.CSF$data.merged,
+                                   runs = "all",
+                                   features = feature.set,
+                                   labels = "Status",
+                                   font.size = 15)
+
+violin.plots[[length(violin.plots)]]
+```
+
+### Building a predictive quality assessment model
+
+`TrainQCModel` is a `TargetedMSQC` function that builds a predictive model of the peak quality based on the merged feature and training data frame. `TrainQCModel` takes advantage of the many capabilities and functions in the `r CRANpkg("caret")` package. In fact, it provides a simplified wrapper function to the `r CRANpkg("caret")` training workflow. `TrainQCModel` takes the merged data frame, generated by `MakeDataSet` as input. Additionally, the column name of the manually assigned labels to the training set, and names of descriptive columns (any column that is not an identifier or label e.g. `Notes`) can be provided as additional parameters to the function.   
+
+By default, the `TrainQCModel` randomly splits the training data into training (80%) and validation (20%) subsets. The validation subset is kept out of the training process and used only to provide an estimate of the performance of the model on unseen data. The features undergo the following pre-processing steps before the training process: First, the features are centered by mean and then scaled by diving by the standard deviation. Repeated 10-fold cross validation (3 repeats) is used to minimize over-fitting. Accuracy of the model in predicting the peak quality in the training subset is used to select the final model with the best performance.   
+
+The machine learning algorithm used by `TargetedMSQC` can be specified via the `method` parameter. Please check the list of [available models](https://topepo.github.io/caret/available-models.html) for machine learning algorithms supported by the `r CRANpkg("caret")` package. In our evaluation of several models, including support vector machines `SVM` with linear and polynomial kernels, regularized logistic regression, regularized random forest `RRF`, and K-nearest neighbor `KNN` on a number of different dataset, we have found the `RRF` method to outperform the others. It should be noted that training an `RRF` model is a computationally intensive process. `KNN` is another model that performs fairly well. Although in our experience `KNN` does not perform as well as `RRF`, it can be trained significantly faster and therefore may be worthwhile to try for some applications. Furthermore, for users interested in optimizing their model using tuning grids, the `tuneGrid` argument is enabled for customization. Please see the caret help page for more details on how to [tune a model](https://topepo.github.io/caret/model-training-and-tuning.html#grids). Finally, the random seeds for splitting the input data into training and validation subsets and cross-validation can be fixed via the `random.seed` parameter. 
+
+```{r TrainQCModel, eval=FALSE}
+# For optimization of the model, a custom tuning grid can be specified
+rrf.grid <-  expand.grid(mtry = c(2,10,20,30,40,50), 
+                        coefReg = c(0.5,1), 
+                        coefImp = c(0,0.1))
+
+# TrainQCModel uses functions in the caret package to build a predictive model 
+# of peak quality based on the pre-annotated training dataset
+model.rrf.CSF <- TrainQCModel(data.merged = data.training, 
+                          response.var = c("Status"), 
+                          description.columns = c("Notes"), 
+                          method = "RRF", 
+                          tuneGrid = rrf.grid,
+                          random.seed = c(100,200),
+                          export.model = FALSE)
+
+```
+
+The `TrainQCModel` function returns a list with the following objects:    
+
+**1. model.rrf.CSF$model**: This object contains the results of model training and grid tuning as well as the final model selected based on highest accuracy.
+
+```{r TrainQCModel.model}
+model.rrf.CSF$model
+```
+
+
+**2. model.rrf.CSF$performance.testing**: This object contains the performance of the model on the validation subset in the form of a confusion matrix. Performance parameters such as sensitivity, specificity, positive predictive value and negative predictive value of the model are presented.
+
+```{r TrainQCModel.performance}
+model.rrf.CSF$performance.testing
+```
+
+### Applying the predictive quality assessment model
+
+Once a model with acceptable performance metrics has been built, it can be applied to targeted MS datasets generated by the same panel in the same biological matrix, using the `ApplyQCModel` function. This function takes advantage of the `r CRANpkg("caret")` package functions for applying the model to the data. Please note that to prepare your dataset, your input data needs to go through the pre-processing steps (using `CleanUpChromatograms`) and the quality control features should be calculated for each transition pair (using `ExtractFeatures`). The`ApplyQCModel` function can be then applied to the output of `ExtractFeatures`.
+
+```{r ApplyQcModel}
+response.data <- ApplyQCModel(data.features.CSF$features,
+                              model.rrf.CSF,
+                              flag.prob.threshold = 0.5)
+```
+
+```{r echo = TRUE, eval = FALSE}
+# View the response.data data frame
+head(response.data)
+```
+The ApplyQCModel allows the users to export class probabilities in addition to assigned classes to each peak. This can be done by setting `type = "prob"`. This option only works for predictive models that support exporting class probabilities e.g. Random Forest and Logistic Regression. On the other hand, models such as K-nearest neighbor only output the assigned classes.
+
+```{r ApplyQcModel.prob}
+response.data <- ApplyQCModel(data.features.CSF$features,
+                              model.rrf.CSF,
+                              flag.prob.threshold = 0.5,
+                              type = "prob")
+
+```
+
+```{r, echo = FALSE,results='hide'}
+s <- as.data.frame(summary(response.data$Status.prediction))
+colnames(s) <- c("Count")
+s$Class <- rownames(s)
+s <- s %>% tidyr::spread(key = Class,value = Count)
+s$Threshold <- 0.5
+```
+
+The ApplyQCModel uses a class probability cut-off of 0.5 to assign classes to each peak. For example, a peak with "flag" class probability of 0.49 will be assigned an "ok" label. However, if the user is willing to compromise specificity of the model to improve the sensitivity, they may do so by changing the class probability cut-off using the `flag.prob.threshold` parameter. For example, setting `flag.prob.threshold = 0.4` will result in flagging the peak with "flag" class probability of 0.49 and therefore increases the sensitivity of the model to flag low quality peaks at the expense of lower specificity and therefore higher number of falsely flagged peaks.
+
+```{r}
+response.data <- ApplyQCModel(data.features.CSF$features,
+                              model.rrf.CSF,
+                              flag.prob.threshold = 0.4,
+                              type = "prob")
+```
+
+As seen in this example, decreasing the `flag.prob.threshold` from 0.5 to 0.4 increases the number of flagged peaks:
+
+```{r, echo = FALSE}
+s2 <- as.data.frame(summary(response.data$Status.prediction))
+colnames(s2) <- c("Count")
+s2$Class <- rownames(s2)
+s2 <- s2 %>% tidyr::spread(key = Class,value = Count)
+s2$Threshold <- 0.4
+s <- rbind(s,s2)[,c("Threshold","flag","ok")]
+colnames(s) <- c("Flag Probability Threshold", "No. of Flagged Peaks", "No. of Ok Peaks")
+s %>%
+  knitr::kable("html") %>%
+  kableExtra::kable_styling(bootstrap_options = "striped", full_width = F,position = "left")
+```
+
+### Reporting the output of the QC process
+
+Finally, after you have applied the QC model to identify low quality peaks, a .pdf report can be generated to summarize the QC results using the `PlotQCReport` function. The .pdf report will be saved in the `report.path` provided by the user.
+
+
+```{r PlotQCReport, eval = FALSE}
+PlotQCReport(response.data,report.path = "", 
+             response.var = c("Status.prediction"), 
+             plot.prob = FALSE)
+
+```
+For plotting the flag class probability for each peak instead of the assigned class, set `plot.prob = TRUE`.
+
+```{r PlotQCReport.prob, eval = FALSE}
+PlotQCReport(response.data,report.path = "", 
+             response.var = c("Status.prediction"), 
+             plot.prob = TRUE)
+```
+

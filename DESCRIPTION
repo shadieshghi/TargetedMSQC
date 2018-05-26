@@ -1,0 +1,30 @@
+Package: TargetedMSQC
+Type: Package
+Title: TargetedMSQC for Automated Quality Assessment of Targeted Mass Spectrometry Data
+Version: 0.99.0
+Author: Shadi Eshghi
+Maintainer: Shadi Eshghi <toghiess@gene.com>
+Description: An Implementation of Methods and Quality Control Metrics for Automated Quality Assessment of
+    Chromatographic Peaks in Targeted Mass Spectrometry Data
+License: GPL-2 
+LazyData: TRUE
+Imports:
+	ggplot2,
+	dplyr,
+	tidyr,
+	methods,
+	plotly,
+	psych,
+	magrittr,
+	pracma,
+	Biobase,
+	data.table,
+	caret,
+	ComplexHeatmap,
+	circlize,
+	grid
+Suggests:
+	knitr,
+    rmarkdown
+RoxygenNote: 6.0.1
+VignetteBuilder: knitr
