@@ -152,7 +152,7 @@ The engineered QC features that have been calculated for each peptide transition
 
 - **Area Ratio**  
 - **Jaggedness**  
-- **Symmetry **  
+- **Symmetry**  
 - **Similarity**  
 - **Modality**  
 - **Shift**  
@@ -292,7 +292,7 @@ rrf.grid <-  expand.grid(mtry = c(2,10,20,30,40,50),
 
 # TrainQCModel uses functions in the caret package to build a predictive model 
 # of peak quality based on the pre-annotated training dataset
-model.rrf.CSF <- TrainQCModel(data.merged = data.training, 
+model.rrf.CSF <- TrainQCModel(data.merged = data.set.CSF$data.merged, 
                           response.var = c("Status"), 
                           description.columns = c("Notes"), 
                           method = "RRF", 

@@ -259,7 +259,7 @@ MakeDataSet <- function(feature.data = NULL, feature.path = NULL, training.path 
 #'                           random.seed = c(100,200))
 #'
 
-TrainQCModel <- function(data.merged, response.var = c("Status"), description.columns = c("Notes"), method = "RRF", tuneGrid = NULL, random.seed = NULL, export.model = FALSE, model.path = "", ...) {
+TrainQCModel <- function(data.merged, response.var = c("Status"), description.columns = c("Notes"), method = "RRF", metric = "Accuracy",tuneGrid = NULL, random.seed = NULL, export.model = FALSE, model.path = "", ...) {
 
   identifier.columns = c("File","FileName","PeptideModifiedSequence","FragmentIon",
                          "IsotopeLabelType","PrecursorCharge","ProductCharge")
@@ -326,7 +326,7 @@ TrainQCModel <- function(data.merged, response.var = c("Status"), description.co
   response.prediction <- predict(model, newdata = data.merged.feature.only)
 
   # model performance based on confusion matrix for unseen data (testing set)
-  performance.testing <- confusionMatrix(response.prediction[-trainIndex],resp_vector[-trainIndex])
+  performance.testing <- confusionMatrix(as.factor(response.prediction[-trainIndex]),as.factor(resp_vector[-trainIndex]))
 
   QC.model = list(model = model, performance.testing = performance.testing, model.file.path = NA)
 
