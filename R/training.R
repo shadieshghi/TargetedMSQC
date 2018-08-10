@@ -259,7 +259,7 @@ MakeDataSet <- function(feature.data = NULL, feature.path = NULL, training.path 
 #'                           random.seed = c(100,200))
 #'
 
-TrainQCModel <- function(data.merged, response.var = c("Status"), description.columns = c("Notes"), method = "RRF", metric = "Accuracy",tuneGrid = NULL, random.seed = NULL, export.model = FALSE, model.path = "", ...) {
+TrainQCModel <- function(data.merged, response.var = c("Status"), description.columns = c("Notes"), method = "RRF", metric = c("Accuracy","ROC"),tuneGrid = NULL, random.seed = NULL, export.model = FALSE, model.path = "", ...) {
 
   identifier.columns = c("File","FileName","PeptideModifiedSequence","FragmentIon",
                          "IsotopeLabelType","PrecursorCharge","ProductCharge")
@@ -283,11 +283,15 @@ TrainQCModel <- function(data.merged, response.var = c("Status"), description.co
   # response vector
   resp_vector <- as.matrix(data.merged[,response.var])
 
-  # Accuracy is the metric used for optimization of the model
-  metric = "Accuracy"
-
   # a 10-fold repeated cross validation (3 repeats) is used for model optimization.
-  train_control <- trainControl(method = "repeatedcv", number = 10, repeats = 3,verboseIter = FALSE,sampling = "up",grid)
+  # if metric = ROC, the trainControl
+  if (metric == "ROC") {
+    train_control <- trainControl(method = "repeatedcv", number = 10, repeats = 3,verboseIter = FALSE,sampling = "up",grid,classProbs = TRUE,summaryFunction = twoClassSummary)
+  } else {
+    train_control <- trainControl(method = "repeatedcv", number = 10, repeats = 3,verboseIter = FALSE,sampling = "up",grid)
+  }
+
+
 
   # split the data into training and testing sets. Training set is used to optimize model parameters and train the model. Testing set is used as unseen data to estimate model performance and evaluate overfitting
   if (!is.null(random.seed)) set.seed(random.seed[1])
@@ -300,6 +304,8 @@ TrainQCModel <- function(data.merged, response.var = c("Status"), description.co
   # if a seed is provided for controlling the randomness of the algorithm, apply here
   if (!is.null(random.seed)) set.seed(random.seed[2])
 
+
+  }
   # Train the model using the training dataset
   if (!is.null(tuneGrid)) {
     model <- train(as.matrix(datasetTrain),
