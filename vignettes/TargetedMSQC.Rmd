@@ -264,10 +264,18 @@ head(data.set.CSF$feature.data)
 head(data.set.CSF$training.data)
 ```
 
-Using the `ViolinPlotQCSummary` on the data.merged output of this function, the violin plots of peak QC metric distributions can be overlaid with the labels associated with each peak using the `labels` parameter:
+
+**4. data.set.CSF$data.training.feature**: The original training set data frame containing only the annotated peaks
+
+```{r,echo=TRUE, eval = FALSE}
+# View the data.set.CSF$training.data data frame
+head(data.set.CSF$data.training.feature)
+```
+
+Using the `ViolinPlotQCSummary` on the data.training.feature output of this function, the violin plots of peak QC metric distributions can be overlaid with the labels associated with each peak using the `labels` parameter:
 
 ```{r, fig.cap="Violin plot summary visualizing the distribution of QC metrics of interest overlaid with QC status labels"}
-violin.plots = ViolinPlotQCSummary(data.set.CSF$data.merged,
+violin.plots = ViolinPlotQCSummary(data.set.CSF$data.training.feature,
                                    runs = "all",
                                    features = feature.set,
                                    labels = "Status",
@@ -292,7 +300,7 @@ rrf.grid <-  expand.grid(mtry = c(2,10,20,30,40,50),
 
 # TrainQCModel uses functions in the caret package to build a predictive model 
 # of peak quality based on the pre-annotated training dataset
-model.rrf.CSF <- TrainQCModel(data.merged = data.set.CSF$data.merged, 
+model.rrf.CSF <- TrainQCModel(data.merged = data.set.CSF$data.training.feature, 
                           response.var = c("Status"), 
                           description.columns = c("Notes"), 
                           method = "RRF", 

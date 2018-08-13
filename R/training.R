@@ -98,9 +98,10 @@ MakeTemplate <- function(chromatogram.path,template.path, training.filename.list
 #'
 #'
 #' @return A list with the following objects:
-#'               data.merged: A dataframe that is product of merging and cleaning up feature.data and training.data. This data can be used by the TrainQCModel for training a predictive peak QC model.
+#'               data.merged: A dataframe that is product of merging and cleaning up feature.data and training.data.
 #'               feature.data: The input feature.data
 #'               training.data: The annotated input training.data
+#'               data.training.feature: A dataframe that is product of merging and cleaning up feature.data and training.data. This dataframe contain only peaks that have been manually annotated and are included in training.data This data can be used by the TrainQCModel for training a predictive peak QC model.
 #'
 #' @export
 #'
@@ -220,7 +221,9 @@ MakeDataSet <- function(feature.data = NULL, feature.path = NULL, training.path 
       by = c("File","FileName","PeptideModifiedSequence","PrecursorCharge",
       "FragmentIon","ProductCharge"))
 
-  return(list(data.merged = data.merged,feature.data = feature.data,training.data = training.data))
+  data.training.feature <- data.merged %>% filter(!is.na(Status))
+
+  return(list(data.merged = data.merged,feature.data = feature.data,training.data = training.data,data.training.feature = data.training.feature))
 }
 
 #' Train a binary classification model to flag peaks with poor chromatography or interference.
@@ -251,7 +254,7 @@ MakeDataSet <- function(feature.data = NULL, feature.path = NULL, training.path 
 #' rrf.grid <-  expand.grid(mtry = c(2,10),
 #'                          coefReg = c(0.5,1),
 #'                          coefImp = c(0))
-#' model.rrf <- TrainQCModel(data.set.CSF$data.merged,
+#' model.rrf <- TrainQCModel(data.set.CSF$data.training.feature,
 #'                           response.var = c("Status"),
 #'                           description.columns = c("Notes"),
 #'                           method = "RRF",
