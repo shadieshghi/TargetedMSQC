@@ -291,8 +291,6 @@ TrainQCModel <- function(data.merged, response.var = c("Status"), description.co
     train_control <- trainControl(method = "repeatedcv", number = 10, repeats = 3,verboseIter = FALSE,sampling = "up",grid)
   }
 
-
-
   # split the data into training and testing sets. Training set is used to optimize model parameters and train the model. Testing set is used as unseen data to estimate model performance and evaluate overfitting
   if (!is.null(random.seed)) set.seed(random.seed[1])
   trainIndex <- createDataPartition(as.matrix(data.merged[,response.var]),
@@ -304,8 +302,6 @@ TrainQCModel <- function(data.merged, response.var = c("Status"), description.co
   # if a seed is provided for controlling the randomness of the algorithm, apply here
   if (!is.null(random.seed)) set.seed(random.seed[2])
 
-
-  }
   # Train the model using the training dataset
   if (!is.null(tuneGrid)) {
     model <- train(as.matrix(datasetTrain),
