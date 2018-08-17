@@ -112,7 +112,6 @@ head(data.CSF$data)
 
 - Missing isotope pairs: only the endogenous or standard isotope is present. Please note that `TargetedMSQC` only applies to experiments with spiked-in standards.
 - Missing or duplicate peak boundaries: the peak is either missing peak boundaries or has duplicated boundaries in Skyline exported file.
-- Few transitions: the peptide has fewer than 3 transitions. Some of the QC metrics in the `TargetedMSQC` require at least 3 transitions, so peptides with 2 transitions or fewer are removed from downstream QC analysis.
 
 ```{r,echo=TRUE, eval = FALSE}
 # View the data.CSF$removed data frame

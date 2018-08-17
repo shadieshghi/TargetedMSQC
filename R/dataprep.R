@@ -160,25 +160,13 @@ CleanUpChromatograms <- function(chromatogram.path = NULL, peak.boundary.path = 
 
     data$Remove <- data$RemoveIsotopePair | data$RemovePeakBoundary
 
-    # count the number of transitions for each precursor in each file and remove the ones that do not have a minimum of 3. This is necessary, because the calculated features are not reliable for fewer than 3 transitions (particularly cor(x,y) when x and y are of length two is always 1 or -1.)
-
-    tmp <- data %>%
-      filter(!Remove) %>%
-      group_by(File,FileName,PeptideModifiedSequence,PrecursorCharge) %>%
-      summarise(TransitionNo = n()/2) %>%
-      mutate(RemoveFewTransitions = (TransitionNo < 3))
-
-    data <- data %>% left_join(tmp,by = c("File","FileName","PeptideModifiedSequence","PrecursorCharge"))
-
-    data$Remove <- data$Remove | data$RemoveFewTransitions
-
   }
 
   # Rows where peak boundaries are NA are separated into a data frame and returned as output.
 
   removed = data %>%
     filter(Remove | PeptideModifiedSequence %in% iRT.list) %>%
-    select(File,FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,MinStartTime,MaxEndTime,TransitionNo,RemoveIsotopePair,RemovePeakBoundary,RemoveFewTransitions,Remove)
+    select(File,FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,MinStartTime,MaxEndTime,TransitionNo,RemoveIsotopePair,RemovePeakBoundary,Remove)
 
   data = data %>% filter(!Remove & !(PeptideModifiedSequence %in% iRT.list)) %>%
     select(FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,TotalArea,Times,Intensities,MinStartTime,MaxEndTime,File)
@@ -224,7 +212,6 @@ CleanUpChromatograms <- function(chromatogram.path = NULL, peak.boundary.path = 
       removed.na.peaks$TransitionNo <- NA
       removed.na.peaks$RemoveIsotopePair <- FALSE
       removed.na.peaks$RemovePeakBoundary <- TRUE
-      removed.na.peaks$RemoveFewTransitions <- FALSE
       removed.na.peaks$Remove <- TRUE
 
     }
@@ -820,7 +807,7 @@ ExtractFeatures <- function(data, parallel = FALSE, blanks = NA, intensity.thres
     summarise(PeakGroupRatioCorr = cor(endogenous,standard,method = "pearson")) %>%
     right_join(data,by = c("PeptideModifiedSequence", "PrecursorCharge","FileName","File")))
 
-  # impute NA PeakGroupRatioCorr values to 0. As they are a result of all zero signals
+  # impute NA PeakGroupRatioCorr values to 0. The NA values are a result of all zero signals or peptides with only one transition
   data$PeakGroupRatioCorr[is.na(data$PeakGroupRatioCorr)] <- 0
 
   # calculate the endogenous to standard ratio for each transition
