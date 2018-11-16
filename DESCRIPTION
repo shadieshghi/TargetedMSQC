@@ -1,7 +1,7 @@
 Package: TargetedMSQC
 Type: Package
 Title: TargetedMSQC for Automated Quality Assessment of Targeted Mass Spectrometry Data
-Version: 0.99.0
+Version: 0.99.1
 Author: Shadi Eshghi
 Maintainer: Shadi Eshghi <toghiess@gene.com>
 Description: An Implementation of Methods and Quality Control Metrics for Automated Quality Assessment of

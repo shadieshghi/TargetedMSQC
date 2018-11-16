@@ -166,7 +166,7 @@ CleanUpChromatograms <- function(chromatogram.path = NULL, peak.boundary.path = 
 
   removed = data %>%
     filter(Remove | PeptideModifiedSequence %in% iRT.list) %>%
-    select(File,FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,MinStartTime,MaxEndTime,TransitionNo,RemoveIsotopePair,RemovePeakBoundary,Remove)
+    select(File,FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,MinStartTime,MaxEndTime,RemoveIsotopePair,RemovePeakBoundary,Remove)
 
   data = data %>% filter(!Remove & !(PeptideModifiedSequence %in% iRT.list)) %>%
     select(FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,TotalArea,Times,Intensities,MinStartTime,MaxEndTime,File)
@@ -209,7 +209,6 @@ CleanUpChromatograms <- function(chromatogram.path = NULL, peak.boundary.path = 
 
     if (nrow(removed.na.peaks) > 0) {
 
-      removed.na.peaks$TransitionNo <- NA
       removed.na.peaks$RemoveIsotopePair <- FALSE
       removed.na.peaks$RemovePeakBoundary <- TRUE
       removed.na.peaks$Remove <- TRUE
