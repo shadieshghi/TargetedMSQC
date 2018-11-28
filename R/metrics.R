@@ -563,7 +563,7 @@ CalculateTransitionSum <- function(peak,endogenous.label = "light", standard.lab
 
   # calculate the signal for the sum transition peak
 
-  sig <- data.frame(rowSums(peak@sig[,endogenous.cols]), rowSums(peak@sig[,standard.cols]))
+  sig <- data.frame(rowSums(peak@sig[,endogenous.cols, drop = FALSE]), rowSums(peak@sig[,standard.cols, drop = FALSE]))
 
   colnames(sig) <- paste0("sum.0.",c(endogenous.label,standard.label))
   # calculate the area for the sum transition peak
