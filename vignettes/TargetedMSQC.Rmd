@@ -303,6 +303,7 @@ model.rrf.CSF <- TrainQCModel(data.merged = data.set.CSF$data.training.feature,
                           response.var = c("Status"), 
                           description.columns = c("Notes"), 
                           method = "RRF", 
+                          metric = "Accuracy",
                           tuneGrid = rrf.grid,
                           random.seed = c(100,200),
                           export.model = FALSE)

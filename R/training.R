@@ -259,6 +259,7 @@ MakeDataSet <- function(feature.data = NULL, feature.path = NULL, training.path 
 #'                           response.var = c("Status"),
 #'                           description.columns = c("Notes"),
 #'                           method = "RRF",
+#'                           metric = "Accuracy",
 #'                           tuneGrid = rrf.grid,
 #'                           random.seed = c(100,200))
 #'
