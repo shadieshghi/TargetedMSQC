@@ -146,10 +146,14 @@ CleanUpChromatograms <- function(chromatogram.path = NULL, peak.boundary.path = 
     peak.boundary[,numeric.cols] = apply(peak.boundary[,numeric.cols],2,function(x) as.numeric(as.character(x)))
 
 
-    # mark the peaks with missing peak boundaries or the ones with multiple peak boundaries for removal
+    # mark the peaks with missing peak boundaries or the ones with multiple peak boundaries for removal. Note that sometimes skyline exports multiple lines for a peak, where one line is NA. In these cases, I keep the non-NA line and remove the NA line as redundant.
+    peak.boundary <- unique(peak.boundary)
     peak.boundary$RemovePeakBoundary <- FALSE
+    peak.boundary$Redundant <- FALSE
 
     peak.boundary <- peak.boundary %>% group_by(FileName,File,PeptideModifiedSequence) %>% mutate(n = n())
+    peak.boundary[(is.na(peak.boundary$MinStartTime) | is.na(peak.boundary$MaxEndTime)) & (peak.boundary$n > 1),"Redundant"] <- TRUE
+    peak.boundary <- peak.boundary %>% slice(!Redundant) %>% select(-Redundant)
 
     peak.boundary[is.na(peak.boundary$MinStartTime) | is.na(peak.boundary$MaxEndTime) | (peak.boundary$n > 1),"RemovePeakBoundary"] <- TRUE
 
