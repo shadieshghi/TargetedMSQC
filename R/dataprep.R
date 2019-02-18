@@ -922,10 +922,18 @@ ApplyPeakBoundary <- function(peak, boundary,...) {
   # function body  ---------------------------------------
 
   # determine the timepoints and the signal within the boundaries
-  time <- peak@time[which(peak@time > boundary[1] & peak@time < boundary[2])]
+
+  # if there are only 3 time points within the peak boundary pad it with one additional datapoint. If there are fewer that 3, the peak is removed from qc analysis.
+  time.index <- which(peak@time > boundary[1] & peak@time < boundary[2])
+  if (length(time.index) == 3) {
+    if (time.index[1] > 1) time.index <- c(time.index[1] - 1,time.index)
+    else time.index <- c(time.index,tail(time.index,1) + 1)
+  }
+
+  time <- peak@time[time.index]
 
   sig <- peak@sig %>%
-    slice(which(peak@time > boundary[1] & peak@time < boundary[2]))
+    slice(time.index)
 
   # calculate peak area using the trapozoidal approximation
   area <- sapply(sig,function(x) pracma::trapz(time,x))
