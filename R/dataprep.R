@@ -23,6 +23,7 @@
 #' @importFrom tidyr spread
 #' @importFrom data.table setDT
 #' @importFrom data.table rbindlist
+#' @importFrom data.table rbindlist
 #'
 #' @examples
 #'
@@ -153,8 +154,9 @@ CleanUpChromatograms <- function(chromatogram.path = NULL, peak.boundary.path = 
 
     peak.boundary <- peak.boundary %>% group_by(FileName,File,PeptideModifiedSequence) %>% mutate(n = n())
     peak.boundary[(is.na(peak.boundary$MinStartTime) | is.na(peak.boundary$MaxEndTime)) & (peak.boundary$n > 1),"Redundant"] <- TRUE
-    peak.boundary <- peak.boundary %>% slice(!Redundant) %>% select(-Redundant)
+    peak.boundary <- peak.boundary[!peak.boundary$Redundant,] %>% select(-Redundant)
 
+    peak.boundary <- peak.boundary %>% group_by(FileName,File,PeptideModifiedSequence) %>% mutate(n = n())
     peak.boundary[is.na(peak.boundary$MinStartTime) | is.na(peak.boundary$MaxEndTime) | (peak.boundary$n > 1),"RemovePeakBoundary"] <- TRUE
 
     peak.boundary <- peak.boundary %>% select(-n)
@@ -168,11 +170,11 @@ CleanUpChromatograms <- function(chromatogram.path = NULL, peak.boundary.path = 
 
   # Rows where peak boundaries are NA are separated into a data frame and returned as output.
 
-  removed = data %>%
+  removed <- data %>%
     filter(Remove | PeptideModifiedSequence %in% iRT.list) %>%
     select(File,FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,MinStartTime,MaxEndTime,RemoveIsotopePair,RemovePeakBoundary,Remove)
 
-  data = data %>% filter(!Remove & !(PeptideModifiedSequence %in% iRT.list)) %>%
+  data <- data %>% filter(!Remove & !(PeptideModifiedSequence %in% iRT.list)) %>%
     select(FileName,PeptideModifiedSequence,PrecursorCharge,FragmentIon,ProductCharge,IsotopeLabelType,TotalArea,Times,Intensities,MinStartTime,MaxEndTime,File)
 
   #
