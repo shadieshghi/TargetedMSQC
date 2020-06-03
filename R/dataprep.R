@@ -757,7 +757,8 @@ ExtractFeatures <- function(data, parallel = FALSE, blanks = NA, intensity.thres
     mutate(MeanIsotopeRatioConsistency = abs(Area2SumRatio - MeanArea2SumRatio)/MeanArea2SumRatio)
 
   # impute the NA MeanIsotopeRatioConsistency values to max of this column. This happens when for a certain fragment ion of a peptide, nothing is detected above a certain threshold (either determined by intensity at lloq or chosen arbitrarily by the user). In these cases we just assume that the peak is too low to be used for determining the quality of the peak. Also impute values that are not finite (NA,NaN (0/0) and Inf (number/0))
-  data$MeanIsotopeRatioConsistency[!is.finite(data$MeanIsotopeRatioConsistency)] <- max(data$MeanIsotopeRatioConsistency[is.finite(data$MeanIsotopeRatioConsistency)],na.rm = TRUE)
+  impute.value <- max(data$MeanIsotopeRatioConsistency[is.finite(data$MeanIsotopeRatioConsistency)],na.rm = TRUE)
+  data$MeanIsotopeRatioConsistency[!is.finite(data$MeanIsotopeRatioConsistency)] <- ifelse(is.finite(impute.value), impute.value, 1)
 
 
   # calculate the peak width consistency of each transition with average of peak widths in all samples
@@ -775,7 +776,8 @@ ExtractFeatures <- function(data, parallel = FALSE, blanks = NA, intensity.thres
 
 
   # impute the NA MeanIsotopeFWHMConsistency values to max of this column. This happens when for a certain fragment ion of a peptide, nothing is detected above a certain threshold (either determined by intensity at lloq or chosen arbitrarily by the user). In these cases we just assume that the peak is to low to be used for determining the quality of the peak. Also impute values that are not finite (NA,NaN (0/0) and Inf (number/0))
-  data$MeanIsotopeFWHMConsistency[!is.finite(data$MeanIsotopeFWHMConsistency)] <- max(data$MeanIsotopeFWHMConsistency[is.finite(data$MeanIsotopeFWHMConsistency)],na.rm = TRUE)
+  impute.value <- max(data$MeanIsotopeFWHMConsistency[is.finite(data$MeanIsotopeFWHMConsistency)],na.rm = TRUE)
+  data$MeanIsotopeFWHMConsistency[!is.finite(data$MeanIsotopeFWHMConsistency)] <- ifelse(is.finite(impute.value), impute.value, 1)
 
 
   # calculate the peak center (RT) consistency of each transition with average of RT in all samples
@@ -793,7 +795,8 @@ ExtractFeatures <- function(data, parallel = FALSE, blanks = NA, intensity.thres
     mutate(MeanIsotopeRTConsistency = abs(PeakCenter - MeanPeakCenter)/MeanPeakCenter)
 
   # impute the NA MeanIsotopeRTConsistency values to max of this column. This happens when for a certain fragment ion of a peptide, nothing is detected above a certain threshold (either determined by intensity at lloq or chosen arbitrarily by the user). In these cases we just assume that the peak is to low to be used for determining the quality of the peak. Also impute values that are not finite (NA,NaN (0/0) and Inf (number/0))
-  data$MeanIsotopeRTConsistency[!is.finite(data$MeanIsotopeRTConsistency)] <- max(data$MeanIsotopeRTConsistency[is.finite(data$MeanIsotopeRTConsistency)],na.rm = TRUE)
+  impute.value <- max(data$MeanIsotopeRTConsistency[is.finite(data$MeanIsotopeRTConsistency)],na.rm = TRUE)
+  data$MeanIsotopeRTConsistency[!is.finite(data$MeanIsotopeRTConsistency)] <- ifelse(is.finite(impute.value), impute.value, 1)
 
   # calculate the correlation between the light and heavy Area2SumRatios
   # the sum transitions are first filtered out, and the correlation coefficiant between the Area2SumRatio of light and heavy isotopes are calculated for each peptide and sample
