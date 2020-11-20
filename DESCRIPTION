@@ -22,7 +22,8 @@ Imports:
 	caret,
 	ComplexHeatmap,
 	circlize,
-	grid
+	grid,
+	RRF
 Suggests:
 	knitr,
     rmarkdown
